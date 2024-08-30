@@ -1,0 +1,58 @@
+#wpaint {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.1);
+  cursor: crosshair;
+  --rounded: 0.5rem;
+}
+
+#wpaint-box {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.8);
+}
+#wpaint-box.wpaint-box--finished {
+  border-radius: var(--rounded);
+}
+
+.wpaint-box-resizer {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  --border-color: rgb(248, 113, 113);
+}
+.wpaint-box-resizer--tl {
+  top: 0;
+  left: 0;
+  border-top-left-radius: var(--rounded);
+  border-top: 4px solid var(--border-color);
+  border-left: 4px solid var(--border-color);
+  cursor: nwse-resize;
+}
+.wpaint-box-resizer--tr {
+  top: 0;
+  right: 0;
+  border-top-right-radius: var(--rounded);
+  border-top: 4px solid var(--border-color);
+  border-right: 4px solid var(--border-color);
+  cursor: nesw-resize;
+}
+.wpaint-box-resizer--br {
+  bottom: 0;
+  right: 0;
+  border-bottom-right-radius: var(--rounded);
+  border-bottom: 4px solid var(--border-color);
+  border-right: 4px solid var(--border-color);
+  cursor: nwse-resize;
+}
+.wpaint-box-resizer--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-left-radius: var(--rounded);
+  border-bottom: 4px solid var(--border-color);
+  border-left: 4px solid var(--border-color);
+  cursor: nesw-resize;
+}
