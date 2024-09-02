@@ -1,2 +1,2 @@
 import "./index.css";
-export * from "./canvas";
+export * from "./paint";
