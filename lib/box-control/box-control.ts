@@ -1,5 +1,8 @@
-import { ResizerControl, ResizerElement } from "./resizer-control";
+import { ResizerControl } from "./resizer-control";
 import ListenersManager from "../listeners-manager";
+import { ResizeDirection } from "./configs";
+
+const ENTITY_BOX = "BOX";
 
 export class BoxControl {
   private boxCls: string;
@@ -10,9 +13,13 @@ export class BoxControl {
   private resizerCtrl: ResizerControl;
   $listeners = new ListenersManager();
 
-  private _currentBox: HTMLDivElement | undefined;
-  private set currentBox(box: HTMLDivElement) {
+  private _currentBox: HTMLElement | undefined;
+  private set currentBox(box: HTMLElement) {
+    if (this._currentBox) {
+      this._currentBox.classList.remove(`${this.boxCls}--current`);
+    }
     this._currentBox = box;
+    this._currentBox.classList.add(`${this.boxCls}--current`);
   }
   private get currentBox() {
     if (this._currentBox) {
@@ -43,35 +50,43 @@ export class BoxControl {
   }
 
   startDrawing() {
+    this.canvas.style.cursor = "crosshair";
     this.$listeners.add(this.canvas, "CANVAS", "mousedown", this.handleMousedown);
+    this.$listeners.add(document.body, "DOCUMENT", "keydown", this.deleteCurrentBox);
   }
 
-  stopDrawing() {
+  private stopDrawing() {
+    this.canvas.style.cursor = "default";
     this.$listeners.remove(this.canvas, "CANVAS", "mousedown", this.handleMousedown);
+    this.$listeners.remove(document.body, "DOCUMENT", "keydown", this.deleteCurrentBox);
   }
 
   private handleMousedown = (e: MouseEvent) => {
     if (e.target instanceof HTMLElement) {
-      if (this.resizerCtrl.isResizer(e.target)) {
-        this.startBoxAdjustment(e.target);
+      const direction = this.resizerCtrl.directionOf(e.target);
+
+      if (direction) {
+        this.currentBox = e.target.parentElement!;
+        this.startBoxAdjustment(direction);
         return;
       }
       this.startBoxDeployment(e);
     }
   };
 
-  private removeBox = () => {
-    if (this.canvas.contains(this.currentBox)) {
-      this.canvas.removeChild(this.currentBox);
+  private deleteCurrentBox = (e: KeyboardEvent) => {
+    if (e.key === "Delete" && this._currentBox) {
+      this.removeBox(this._currentBox);
     }
   };
 
   // ========== SETUP BOX ==========
 
-  private createBox = (left: number, top: number, width: number, height: number) => {
+  private createBox(left: number, top: number, width: number, height: number) {
     const currentBox = document.createElement("div");
     // currentBox.id = `${this.prefix}-box`;
     currentBox.className = this.boxCls;
+    currentBox.dataset.entity = ENTITY_BOX;
 
     this.currentBox = currentBox;
     this.currentBoxStyle = {
@@ -81,19 +96,19 @@ export class BoxControl {
       height: `${height}px`,
     };
     return currentBox;
-  };
+  }
 
-  private updateAnchor = ({ x, y }: { x: number; y: number } = this.currentBoxRect) => {
+  private updateAnchor({ x, y }: { x: number; y: number } = this.currentBoxRect) {
     this.anchor = { x, y };
-  };
+  }
 
-  private createNewBox = (left: number, top: number, width = 0, height = 0) => {
+  private createNewBox(left: number, top: number, width = 0, height = 0) {
     /** Only 1 currentBox at a time so we remove old currentBox */
-    this.removeBox();
+    // this.removeBox();
     this.createBox(left, top, width, height);
     this.canvas.appendChild(this.currentBox);
     this.updateAnchor();
-  };
+  }
 
   private resizeBox = (e: MouseEvent) => {
     const { x, y } = this.anchor;
@@ -106,9 +121,15 @@ export class BoxControl {
     };
   };
 
+  private removeBox(box: HTMLElement) {
+    if (this.canvas.contains(box)) {
+      this.canvas.removeChild(box);
+    }
+  }
+
   // ========== DEPLOY BOX ==========
 
-  startBoxDeployment = (e: MouseEvent) => {
+  private startBoxDeployment = (e: MouseEvent) => {
     this.createNewBox(e.x, e.y);
 
     this.$listeners.add(this.canvas, "CANVAS", "mousemove", this.resizeBox);
@@ -124,6 +145,7 @@ export class BoxControl {
       const startX = Math.max(Math.min(e.x, clientWidth - this.defaultHalfSize) - this.defaultHalfSize, 0);
       const startY = Math.max(Math.min(e.y, clientHeight - this.defaultHalfSize) - this.defaultHalfSize, 0);
 
+      this.removeBox(this.currentBox);
       this.createNewBox(startX, startY, this.defaultHalfSize * 2, this.defaultHalfSize * 2);
     }
 
@@ -132,10 +154,10 @@ export class BoxControl {
      */
     this.currentBox.classList.add(`${this.boxCls}--finished`);
 
-    const maxResizerSize = Math.floor(Math.min(this.currentBox.clientWidth, this.currentBox.clientHeight) * 0.45);
+    const { width: currentWidth, height: currentHeight } = this.currentBoxRect;
+    const maxResizerSize = Math.floor(Math.min(currentWidth, currentHeight) * 0.45);
     this.resizerCtrl.addResizers(this.currentBox, maxResizerSize);
 
-    this.updateAnchor();
     this.unsubscribeDeployment();
   };
 
@@ -146,10 +168,10 @@ export class BoxControl {
 
   // ========== ADJUST BOX ==========
 
-  startBoxAdjustment = (resizer: ResizerElement) => {
+  private startBoxAdjustment = (direction: ResizeDirection) => {
     const { currentBoxRect } = this;
 
-    switch (resizer.__direction) {
+    switch (direction) {
       case "TL":
         this.updateAnchor({
           x: currentBoxRect.right,
@@ -178,7 +200,6 @@ export class BoxControl {
   };
 
   private endBoxAdjustment = () => {
-    this.updateAnchor();
     this.unsubscribeAdjustment();
   };
 
@@ -191,6 +212,5 @@ export class BoxControl {
     this.unsubscribeDeployment();
     this.unsubscribeAdjustment();
     this.stopDrawing();
-    this.removeBox();
   };
 }

@@ -64,6 +64,7 @@ export class Paint {
         this.paintGround.style.overflow = this.previousGroundOverflow;
       }
 
+      this.canvas.replaceChildren();
       this.canvas.style.display = "none";
       // #TO_CHECK
       this.boxCtrl.disconnect();
