@@ -28,7 +28,7 @@ function App() {
   };
 
   const logListenersCount = () => {
-    console.log(paint.current?.subscribersCount);
+    console.log(paint.current?.listenersCount);
   };
 
   return (

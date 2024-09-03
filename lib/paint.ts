@@ -1,5 +1,4 @@
 import { BoxControl } from "./box-control";
-import $events from "./events-manager";
 
 type PaintConstructOpions = {
   prefix: string;
@@ -16,8 +15,9 @@ const defaultOptions: PaintConstructOpions = {
 let paintNo = 0;
 
 export class Paint {
+  private paintGround: HTMLElement | undefined;
   private canvas: HTMLDivElement;
-  private previousBodyOverflow = "";
+  private previousGroundOverflow = "";
   private boxCtrl: BoxControl;
   isActive = false;
 
@@ -38,41 +38,33 @@ export class Paint {
     return canvas;
   }
 
-  get subscribersCount() {
-    return $events.subscribersCount;
+  get listenersCount() {
+    return this.boxCtrl.$listeners.listenersCount;
   }
 
-  private handleMousedown = (e: MouseEvent) => {
-    if (e.target instanceof HTMLElement) {
-      if (this.boxCtrl.isBoxResizer(e.target)) {
-        this.boxCtrl.startBoxAdjustment(e.target);
-        return;
-      }
-      this.boxCtrl.startBoxDeployment(e);
-    }
-  };
+  startSession(paintGround?: HTMLElement | (() => HTMLElement)) {
+    this.paintGround = paintGround ? (typeof paintGround === "function" ? paintGround() : paintGround) : document.body;
 
-  startSession() {
     this.isActive = true;
-    this.previousBodyOverflow = getComputedStyle(document.body).overflow;
-    document.body.style.overflow = "hidden";
+    this.previousGroundOverflow = getComputedStyle(this.paintGround).overflow;
+    this.paintGround.style.overflow = "hidden";
 
-    if (!document.body.contains(this.canvas)) {
-      document.body.appendChild(this.canvas);
+    if (!this.paintGround.contains(this.canvas)) {
+      this.paintGround.appendChild(this.canvas);
     }
 
     this.canvas.style.display = "block";
-    // $events.subscribe("mousedown", this.handleMousedown);
   }
 
   endSession() {
     if (this.isActive) {
       this.isActive = false;
-      document.body.style.overflow = this.previousBodyOverflow;
+
+      if (this.paintGround) {
+        this.paintGround.style.overflow = this.previousGroundOverflow;
+      }
 
       this.canvas.style.display = "none";
-      $events.unsubscribe("mousedown", this.handleMousedown);
-
       // #TO_CHECK
       this.boxCtrl.disconnect();
     }

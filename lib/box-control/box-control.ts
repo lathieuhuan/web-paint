@@ -1,5 +1,5 @@
 import { ResizerControl, ResizerElement } from "./resizer-control";
-import $events from "../events-manager";
+import ListenersManager from "../listeners-manager";
 
 export class BoxControl {
   private boxCls: string;
@@ -8,6 +8,7 @@ export class BoxControl {
     y: 0,
   };
   private resizerCtrl: ResizerControl;
+  $listeners = new ListenersManager();
 
   private _currentBox: HTMLDivElement | undefined;
   private set currentBox(box: HTMLDivElement) {
@@ -41,17 +42,17 @@ export class BoxControl {
     return this.currentBox.getBoundingClientRect();
   }
 
-  private removeBox = () => {
-    if (this.canvas.contains(this.currentBox)) {
-      this.canvas.removeChild(this.currentBox);
-    }
-  };
+  startDrawing() {
+    this.$listeners.add(this.canvas, "CANVAS", "mousedown", this.handleMousedown);
+  }
 
-  // ========== SETUP BOX ==========
+  stopDrawing() {
+    this.$listeners.remove(this.canvas, "CANVAS", "mousedown", this.handleMousedown);
+  }
 
   private handleMousedown = (e: MouseEvent) => {
     if (e.target instanceof HTMLElement) {
-      if (this.isBoxResizer(e.target)) {
+      if (this.resizerCtrl.isResizer(e.target)) {
         this.startBoxAdjustment(e.target);
         return;
       }
@@ -59,14 +60,13 @@ export class BoxControl {
     }
   };
 
-  startDrawing() {
-    this.currentBox = this.createBox(0, 0, 0, 0);
-    $events.subscribe("mousedown", this.handleMousedown);
-  }
+  private removeBox = () => {
+    if (this.canvas.contains(this.currentBox)) {
+      this.canvas.removeChild(this.currentBox);
+    }
+  };
 
-  stopDrawing() {
-    $events.unsubscribe("mousedown", this.handleMousedown);
-  }
+  // ========== SETUP BOX ==========
 
   private createBox = (left: number, top: number, width: number, height: number) => {
     const currentBox = document.createElement("div");
@@ -111,8 +111,8 @@ export class BoxControl {
   startBoxDeployment = (e: MouseEvent) => {
     this.createNewBox(e.x, e.y);
 
-    $events.subscribe("mousemove", this.resizeBox);
-    $events.subscribe("mouseup", this.endBoxDeployment);
+    this.$listeners.add(this.canvas, "CANVAS", "mousemove", this.resizeBox);
+    this.$listeners.add(this.canvas, "CANVAS", "mouseup", this.endBoxDeployment);
   };
 
   private endBoxDeployment = (e: MouseEvent) => {
@@ -140,15 +140,11 @@ export class BoxControl {
   };
 
   private unsubscribeDeployment = () => {
-    $events.unsubscribe("mousemove", this.resizeBox);
-    $events.unsubscribe("mouseup", this.endBoxDeployment);
+    this.$listeners.remove(this.canvas, "CANVAS", "mousemove", this.resizeBox);
+    this.$listeners.remove(this.canvas, "CANVAS", "mouseup", this.endBoxDeployment);
   };
 
   // ========== ADJUST BOX ==========
-
-  isBoxResizer = (elmt: HTMLElement) => {
-    return this.resizerCtrl.isResizer(elmt);
-  };
 
   startBoxAdjustment = (resizer: ResizerElement) => {
     const { currentBoxRect } = this;
@@ -177,8 +173,8 @@ export class BoxControl {
         break;
     }
 
-    $events.subscribe("mousemove", this.resizeBox);
-    $events.subscribe("mouseup", this.endBoxAdjustment);
+    this.$listeners.add(this.canvas, "CANVAS", "mousemove", this.resizeBox);
+    this.$listeners.add(this.canvas, "CANVAS", "mouseup", this.endBoxAdjustment);
   };
 
   private endBoxAdjustment = () => {
@@ -187,8 +183,8 @@ export class BoxControl {
   };
 
   private unsubscribeAdjustment = () => {
-    $events.unsubscribe("mousemove", this.resizeBox);
-    $events.unsubscribe("mouseup", this.endBoxAdjustment);
+    this.$listeners.remove(this.canvas, "CANVAS", "mousemove", this.resizeBox);
+    this.$listeners.remove(this.canvas, "CANVAS", "mouseup", this.endBoxAdjustment);
   };
 
   disconnect = () => {
