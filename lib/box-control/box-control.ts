@@ -8,10 +8,13 @@ const RESIZER_SIZE_VAR_NAME = "--resizer-size";
 
 type ExposedBoxControl = {
   currentBox: BoxControl["currentBox"];
+  currentBoxRect: BoxControl["currentBoxRect"];
   removeBox: BoxControl["removeBox"];
 };
 
-export type OnDrawBox = (stage: "DEPLOY_START", control: ExposedBoxControl) => void;
+type BoxDrawingStage = "DEPLOY_START" | "DEPLOY_END" | "ADJUST_START" | "ADJUST_END";
+
+export type OnDrawBox = (stage: BoxDrawingStage, control: Readonly<ExposedBoxControl>) => void;
 
 export type BoxControlConstructParams = {
   prefix: string;
@@ -39,9 +42,7 @@ export class BoxControl {
 
   private _currentBox: HTMLElement | undefined;
   private set currentBox(box: HTMLElement) {
-    if (this._currentBox) {
-      this._currentBox.classList.remove(`${this.boxCls}--current`);
-    }
+    this._currentBox?.classList.remove(`${this.boxCls}--current`);
     this._currentBox = box;
     this._currentBox.classList.add(`${this.boxCls}--current`);
   }
@@ -99,6 +100,7 @@ export class BoxControl {
 
       if (direction) {
         this.currentBox = e.target.parentElement!;
+        this.canvasManager.onDrawBox?.("ADJUST_START", this as any);
         this.startBoxAdjustment(direction);
         return;
       }
@@ -217,6 +219,7 @@ export class BoxControl {
     this.resizerCtrl.addResizers(this.currentBox, `var(${RESIZER_SIZE_VAR_NAME})`);
 
     this.unsubscribeDeployment();
+    this.canvasManager.onDrawBox?.("DEPLOY_END", this as any);
   };
 
   private unsubscribeDeployment = () => {
@@ -260,6 +263,7 @@ export class BoxControl {
   private endBoxAdjustment = () => {
     this.assureBoxMinSize();
     this.unsubscribeAdjustment();
+    this.canvasManager.onDrawBox?.("ADJUST_END", this as any);
   };
 
   private unsubscribeAdjustment = () => {

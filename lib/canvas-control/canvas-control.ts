@@ -22,7 +22,7 @@ export class CanvasControl {
   id: string;
   isActive = false;
 
-  get listenersCount() {
+  get subscribersCount() {
     return this.boxCtrl.$listeners.listenersCount;
   }
 

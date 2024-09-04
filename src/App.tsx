@@ -8,7 +8,20 @@ function App() {
 
   useEffect(() => {
     const newCanvas = paint.makeCanvas();
-    newCanvas.addListener("onDrawBox", () => newCanvas.clearAll());
+
+    newCanvas.addListener("onDrawBox", (stage, boxCtrl) => {
+      console.log('stage', stage);
+
+      switch (stage) {
+        case "DEPLOY_START":
+          newCanvas.clearAll();
+          break;
+        case "DEPLOY_END":
+        case "ADJUST_END":
+          console.log(boxCtrl.currentBoxRect.toJSON());
+          break;
+      }
+    });
 
     const endSessionOnEscPressed = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -22,7 +35,7 @@ function App() {
     return () => {
       newCanvas.endSession();
       document.addEventListener("keydown", endSessionOnEscPressed);
-      logListenersCount();
+      logSubscribersCount();
     };
   }, []);
 
@@ -31,8 +44,8 @@ function App() {
     canvas.current?.startBoxDrawing();
   };
 
-  const logListenersCount = () => {
-    console.log(canvas.current?.listenersCount);
+  const logSubscribersCount = () => {
+    console.log(canvas.current?.subscribersCount);
   };
 
   return (
@@ -41,7 +54,7 @@ function App() {
         <button className="button button-primary" onClick={onClickStart}>
           Start
         </button>
-        <button className="button button-danger" onClick={logListenersCount}>
+        <button className="button button-danger" onClick={logSubscribersCount}>
           Log Listeners count
         </button>
       </div>
