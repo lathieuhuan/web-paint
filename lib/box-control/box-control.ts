@@ -1,10 +1,34 @@
 import { ResizerControl } from "./resizer-control";
 import ListenersManager from "../listeners-manager";
 import { ResizeDirection } from "./configs";
+import type { CanvasManager } from "../canvas-control";
 
 const ENTITY_BOX = "BOX";
+const RESIZER_SIZE_VAR_NAME = "--resizer-size";
+
+type ExposedBoxControl = {
+  currentBox: BoxControl["currentBox"];
+  removeBox: BoxControl["removeBox"];
+};
+
+export type OnDrawBox = (stage: "DEPLOY_START", control: ExposedBoxControl) => void;
+
+export type BoxControlConstructParams = {
+  prefix: string;
+  canvas: HTMLElement;
+  minBoxSize: number;
+  defaultHalfSize: number;
+  maxResizersSizeRatio: number;
+  canvasManager: CanvasManager;
+};
 
 export class BoxControl {
+  canvas: BoxControlConstructParams["canvas"];
+  private minBoxSize: BoxControlConstructParams["minBoxSize"];
+  private defaultHalfSize: BoxControlConstructParams["defaultHalfSize"];
+  private maxResizersSizeRatio: BoxControlConstructParams["maxResizersSizeRatio"];
+  private canvasManager: CanvasManager;
+
   private boxCls: string;
   private anchor = {
     x: 0,
@@ -29,20 +53,28 @@ export class BoxControl {
     return document.createElement("div");
   }
 
-  constructor(
-    prefix: string,
-    private canvas: HTMLElement,
-    private minBoxSize: number,
-    private defaultHalfSize: number
-  ) {
-    this.boxCls = `${prefix}-box`;
-    this.resizerCtrl = new ResizerControl(prefix);
+  constructor(params: BoxControlConstructParams) {
+    this.canvas = params.canvas;
+    this.minBoxSize = params.minBoxSize;
+    this.defaultHalfSize = params.defaultHalfSize;
+    this.maxResizersSizeRatio = params.maxResizersSizeRatio;
+    this.canvasManager = params.canvasManager;
+
+    this.boxCls = `${params.prefix}-box`;
+    this.resizerCtrl = new ResizerControl(params.prefix);
   }
 
   private set currentBoxStyle(style: Partial<CSSStyleDeclaration>) {
+    const { currentBox } = this;
+
     for (const key in style) {
-      if (style[key]) this.currentBox.style[key] = style[key];
+      currentBox.style[key] = style[key]!;
     }
+
+    currentBox.style.setProperty(
+      RESIZER_SIZE_VAR_NAME,
+      `calc(${this.maxResizersSizeRatio} * min(${currentBox.style.width}, ${currentBox.style.height}))`
+    );
   }
 
   private get currentBoxRect() {
@@ -70,6 +102,7 @@ export class BoxControl {
         this.startBoxAdjustment(direction);
         return;
       }
+      this.canvasManager.onDrawBox?.("DEPLOY_START", this as any);
       this.startBoxDeployment(e);
     }
   };
@@ -84,7 +117,6 @@ export class BoxControl {
 
   private createBox(left: number, top: number, width: number, height: number) {
     const currentBox = document.createElement("div");
-    // currentBox.id = `${this.prefix}-box`;
     currentBox.className = this.boxCls;
     currentBox.dataset.entity = ENTITY_BOX;
 
@@ -110,16 +142,40 @@ export class BoxControl {
     this.updateAnchor();
   }
 
-  private resizeBox = (e: MouseEvent) => {
+  private resizeBox = (coordinate: { x: number; y: number }) => {
     const { x, y } = this.anchor;
+    const width = `${Math.abs(coordinate.x - x)}px`;
+    const height = `${Math.abs(coordinate.y - y)}px`;
 
     this.currentBoxStyle = {
-      left: `${Math.min(e.x, x)}px`,
-      top: `${Math.min(e.y, y)}px`,
-      width: `${Math.abs(e.x - x)}px`,
-      height: `${Math.abs(e.y - y)}px`,
+      left: `${Math.min(coordinate.x, x)}px`,
+      top: `${Math.min(coordinate.y, y)}px`,
+      width,
+      height,
     };
   };
+
+  private assureBoxMinSize({ x, y, width, height, right, bottom } = this.currentBoxRect) {
+    // Expand the box to min size
+    const newBoxStyle: Partial<CSSStyleDeclaration> = {};
+
+    if (width < this.minBoxSize) {
+      newBoxStyle.width = `${this.minBoxSize}px`;
+
+      if (x < this.anchor.x) {
+        newBoxStyle.left = `${right - this.minBoxSize}px`;
+      }
+    }
+    if (height < this.minBoxSize) {
+      newBoxStyle.height = `${this.minBoxSize}px`;
+
+      if (y < this.anchor.y) {
+        newBoxStyle.top = `${bottom - this.minBoxSize}px`;
+      }
+    }
+
+    this.currentBoxStyle = newBoxStyle;
+  }
 
   private removeBox(box: HTMLElement) {
     if (this.canvas.contains(box)) {
@@ -137,16 +193,20 @@ export class BoxControl {
   };
 
   private endBoxDeployment = (e: MouseEvent) => {
-    const { width, height } = this.currentBoxRect;
+    const boxRect = this.currentBoxRect;
+    const { width, height } = boxRect;
 
-    // If the currentBox user drew is too small, launch new currentBox with default size
-    if (width < this.minBoxSize || height < this.minBoxSize) {
+    if (!width && !height) {
+      // User click, width & height are 0
       const { clientWidth, clientHeight } = document.documentElement;
       const startX = Math.max(Math.min(e.x, clientWidth - this.defaultHalfSize) - this.defaultHalfSize, 0);
       const startY = Math.max(Math.min(e.y, clientHeight - this.defaultHalfSize) - this.defaultHalfSize, 0);
 
       this.removeBox(this.currentBox);
       this.createNewBox(startX, startY, this.defaultHalfSize * 2, this.defaultHalfSize * 2);
+    } //
+    else {
+      this.assureBoxMinSize(boxRect);
     }
 
     /**
@@ -154,9 +214,7 @@ export class BoxControl {
      */
     this.currentBox.classList.add(`${this.boxCls}--finished`);
 
-    const { width: currentWidth, height: currentHeight } = this.currentBoxRect;
-    const maxResizerSize = Math.floor(Math.min(currentWidth, currentHeight) * 0.45);
-    this.resizerCtrl.addResizers(this.currentBox, maxResizerSize);
+    this.resizerCtrl.addResizers(this.currentBox, `var(${RESIZER_SIZE_VAR_NAME})`);
 
     this.unsubscribeDeployment();
   };
@@ -200,6 +258,7 @@ export class BoxControl {
   };
 
   private endBoxAdjustment = () => {
+    this.assureBoxMinSize();
     this.unsubscribeAdjustment();
   };
 

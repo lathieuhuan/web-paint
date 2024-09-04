@@ -2,49 +2,54 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 50;
+  z-index: 100;
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.1);
 }
 
 .wpaint-box {
+  --boxShadowColor: rgb(0, 0, 0);
   position: absolute;
-  border: 4px solid black;
+  box-shadow: 0 0 0 3px var(--boxShadowColor);
+  box-sizing: border-box;
 }
 /* .wpaint-box--finished {
 } */
 .wpaint-box--current {
-  border-color: red;
+  --boxShadowColor: rgb(255, 0, 0);
 }
 
 .wpaint-box_resizer {
   position: absolute;
   width: 1rem;
-  height: 1rem;
-  background-color: red;
+  aspect-ratio: 1;
 }
 .wpaint-box_resizer--tl {
   top: 0;
   left: 0;
+  translate: -50% -50%;
   border-top-left-radius: inherit;
   cursor: nwse-resize;
 }
 .wpaint-box_resizer--tr {
   top: 0;
   right: 0;
+  translate: 50% -50%;
   border-top-right-radius: inherit;
   cursor: nesw-resize;
 }
 .wpaint-box_resizer--br {
   bottom: 0;
   right: 0;
+  translate: 50% 50%;
   border-bottom-right-radius: inherit;
   cursor: nwse-resize;
 }
 .wpaint-box_resizer--bl {
   bottom: 0;
   left: 0;
+  translate: -50% 50%;
   border-bottom-left-radius: inherit;
   cursor: nesw-resize;
 }

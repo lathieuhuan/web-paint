@@ -9,19 +9,18 @@ export class ResizerControl {
     this.identityCls = `${prefix}-box_resizer`;
   }
 
-  private makeResizer(direction: ResizeDirection, maxResizerSize: number) {
+  private makeResizer(direction: ResizeDirection, maxResizerSize: string) {
     const resizer = document.createElement("div");
     resizer.id = `${this.identityCls}-${direction}`;
     resizer.className = `${this.identityCls} ${this.identityCls}--${direction.toLowerCase()}`;
-    resizer.style.maxWidth = `${maxResizerSize}px`;
-    resizer.style.maxHeight = `${maxResizerSize}px`;
+    resizer.style.maxWidth = maxResizerSize;
     resizer.dataset.entity = ENTITY_NAME;
     resizer.dataset.direction = direction;
 
     return resizer;
   }
 
-  addResizers(box: HTMLElement, maxResizerSize: number) {
+  addResizers(box: HTMLElement, maxResizerSize: string) {
     const DIRECTIONS: ResizeDirection[] = ["TL", "TR", "BR", "BL"];
 
     for (const direction of DIRECTIONS) {

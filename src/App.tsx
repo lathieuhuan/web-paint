@@ -1,34 +1,38 @@
 import { useEffect, useRef } from "react";
-import { Paint } from "../lib/main";
+import { Paint, CanvasControl } from "../lib/main";
+
+const paint = new Paint();
 
 function App() {
-  const paint = useRef<Paint>();
+  const canvas = useRef<CanvasControl>();
 
   useEffect(() => {
-    paint.current = new Paint();
+    const newCanvas = paint.makeCanvas();
+    newCanvas.addListener("onDrawBox", () => newCanvas.clearAll());
 
     const endSessionOnEscPressed = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        paint.current?.endSession();
+        newCanvas.endSession();
       }
     };
 
+    canvas.current = newCanvas;
     document.addEventListener("keydown", endSessionOnEscPressed);
 
     return () => {
-      paint.current?.endSession();
+      newCanvas.endSession();
       document.addEventListener("keydown", endSessionOnEscPressed);
       logListenersCount();
     };
   }, []);
 
   const onClickStart = () => {
-    paint.current?.startSession();
-    paint.current?.startBoxDrawing();
+    canvas.current?.startSession();
+    canvas.current?.startBoxDrawing();
   };
 
   const logListenersCount = () => {
-    console.log(paint.current?.listenersCount);
+    console.log(canvas.current?.listenersCount);
   };
 
   return (
