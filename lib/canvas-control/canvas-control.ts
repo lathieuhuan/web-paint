@@ -1,10 +1,10 @@
-import { BoxControl, BoxControlConstructParams, OnDrawBox } from "../box-control";
+import { BoxControl, OnDrawBox } from "../box-control";
 
-const ENTITY_NAME = "CANVAS";
-
-export type CanvasConstructParams = Omit<BoxControlConstructParams, "canvas" | "defaultHalfSize" | "canvasManager"> & {
-  paintGround: HTMLElement;
-  id: string;
+export type CanvasConstructOptions = {
+  id?: string;
+  prefix: string;
+  minBoxSize: number;
+  maxResizersSizeRatio: number;
   defaultBoxSize: number;
 };
 
@@ -12,8 +12,18 @@ export type CanvasManager = {
   onDrawBox?: OnDrawBox;
 };
 
+let nextCanvasId = 0;
+const ENTITY_NAME = "CANVAS";
+
+const defaultOptions: CanvasConstructOptions = {
+  prefix: "wpaint",
+  minBoxSize: 16,
+  defaultBoxSize: 160,
+  /** compared to box */
+  maxResizersSizeRatio: 0.6,
+};
+
 export class CanvasControl {
-  private paintGround: HTMLElement;
   private previousGroundOverflow = "";
   private canvas: HTMLElement;
   private canvasCls: string;
@@ -26,18 +36,18 @@ export class CanvasControl {
     return this.boxCtrl.$listeners.listenersCount;
   }
 
-  constructor(params: CanvasConstructParams) {
-    const { id, prefix } = params;
+  constructor(private paintGround: HTMLElement = document.body, options?: Partial<CanvasConstructOptions>) {
+    const mergedOptions = Object.assign(defaultOptions, options);
+    const { id = `${nextCanvasId++}`, prefix } = mergedOptions;
 
     this.id = id;
     this.canvasCls = `${prefix}-canvas`;
-    this.paintGround = params.paintGround;
     this.canvas = this.createCanvas(`${this.canvasCls}--${id}`, this.canvasCls);
     this.boxCtrl = new BoxControl({
       canvas: this.canvas,
       canvasManager: this.manager,
-      defaultHalfSize: params.defaultBoxSize / 2,
-      ...params,
+      defaultHalfSize: mergedOptions.defaultBoxSize / 2,
+      ...mergedOptions,
     });
   }
 

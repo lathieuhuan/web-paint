@@ -1,16 +1,18 @@
 import { useEffect, useRef } from "react";
-import { Paint, CanvasControl } from "../lib/main";
+import { CanvasControl } from "../lib/main";
 
-const paint = new Paint();
+// const paint = new Paint();
 
 function App() {
   const canvas = useRef<CanvasControl>();
 
   useEffect(() => {
-    const newCanvas = paint.makeCanvas();
+    // const newCanvas = paint.makeCanvas(() => document.getElementById("demo")!);
+    // const newCanvas = paint.makeCanvas();
+    const newCanvas = new CanvasControl(document.getElementById("demo")!);
 
     newCanvas.addListener("onDrawBox", (stage, boxCtrl) => {
-      console.log('stage', stage);
+      console.log("stage", stage);
 
       switch (stage) {
         case "DEPLOY_START":
@@ -58,6 +60,17 @@ function App() {
           Log Listeners count
         </button>
       </div>
+
+      <div
+        id="demo"
+        style={{
+          margin: '16px auto 0',
+          position: "relative",
+          width: 800,
+          height: 600,
+          background: "green",
+        }}
+      />
     </div>
   );
 }

@@ -1,12 +1,18 @@
 import { ResizerControl } from "./resizer-control";
 import ListenersManager from "../listeners-manager";
 import { ResizeDirection } from "./configs";
-import type { CanvasManager } from "../canvas-control";
+import type { CanvasConstructOptions, CanvasManager } from "../canvas-control";
+
+type Point = {
+  x: number;
+  y: number;
+};
 
 const ENTITY_BOX = "BOX";
 const RESIZER_SIZE_VAR_NAME = "--resizer-size";
 
 type ExposedBoxControl = {
+  canvas: BoxControl["canvas"];
   currentBox: BoxControl["currentBox"];
   currentBoxRect: BoxControl["currentBoxRect"];
   removeBox: BoxControl["removeBox"];
@@ -16,12 +22,9 @@ type BoxDrawingStage = "DEPLOY_START" | "DEPLOY_END" | "ADJUST_START" | "ADJUST_
 
 export type OnDrawBox = (stage: BoxDrawingStage, control: Readonly<ExposedBoxControl>) => void;
 
-export type BoxControlConstructParams = {
-  prefix: string;
+type BoxControlConstructParams = Pick<CanvasConstructOptions, "prefix" | "minBoxSize" | "maxResizersSizeRatio"> & {
   canvas: HTMLElement;
-  minBoxSize: number;
   defaultHalfSize: number;
-  maxResizersSizeRatio: number;
   canvasManager: CanvasManager;
 };
 
@@ -33,7 +36,7 @@ export class BoxControl {
   private canvasManager: CanvasManager;
 
   private boxCls: string;
-  private anchor = {
+  private anchor: Point = {
     x: 0,
     y: 0,
   };
@@ -82,6 +85,14 @@ export class BoxControl {
     return this.currentBox.getBoundingClientRect();
   }
 
+  private getPointOnCanvas(pointOnViewPort: Point): Point {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: pointOnViewPort.x - rect.left,
+      y: pointOnViewPort.y - rect.top,
+    };
+  }
+
   startDrawing() {
     this.canvas.style.cursor = "crosshair";
     this.$listeners.add(this.canvas, "CANVAS", "mousedown", this.handleMousedown);
@@ -109,6 +120,11 @@ export class BoxControl {
     }
   };
 
+  private toggleBoxInitStage(initStage: boolean, box: HTMLElement = this.currentBox) {
+    box.dataset.init = initStage ? "true" : "false";
+    return box;
+  }
+
   private deleteCurrentBox = (e: KeyboardEvent) => {
     if (e.key === "Delete" && this._currentBox) {
       this.removeBox(this._currentBox);
@@ -122,7 +138,7 @@ export class BoxControl {
     currentBox.className = this.boxCls;
     currentBox.dataset.entity = ENTITY_BOX;
 
-    this.currentBox = currentBox;
+    this.currentBox = this.toggleBoxInitStage(true, currentBox);
     this.currentBoxStyle = {
       left: `${left}px`,
       top: `${top}px`,
@@ -132,32 +148,37 @@ export class BoxControl {
     return currentBox;
   }
 
-  private updateAnchor({ x, y }: { x: number; y: number } = this.currentBoxRect) {
-    this.anchor = { x, y };
-  }
-
   private createNewBox(left: number, top: number, width = 0, height = 0) {
     /** Only 1 currentBox at a time so we remove old currentBox */
     // this.removeBox();
     this.createBox(left, top, width, height);
     this.canvas.appendChild(this.currentBox);
-    this.updateAnchor();
+    this.anchor = { x: left, y: top };
   }
 
-  private resizeBox = (coordinate: { x: number; y: number }) => {
-    const { x, y } = this.anchor;
-    const width = `${Math.abs(coordinate.x - x)}px`;
-    const height = `${Math.abs(coordinate.y - y)}px`;
+  private resizeBox = (e: MouseEvent) => {
+    const { x: anchorX, y: anchorY } = this.anchor;
+    const coordinate = this.getPointOnCanvas({
+      x: e.clientX,
+      y: e.clientY,
+    });
+    const width = `${Math.abs(coordinate.x - anchorX)}px`;
+    const height = `${Math.abs(coordinate.y - anchorY)}px`;
 
     this.currentBoxStyle = {
-      left: `${Math.min(coordinate.x, x)}px`,
-      top: `${Math.min(coordinate.y, y)}px`,
+      left: `${Math.min(coordinate.x, anchorX)}px`,
+      top: `${Math.min(coordinate.y, anchorY)}px`,
       width,
       height,
     };
+    this.toggleBoxInitStage(false);
   };
 
-  private assureBoxMinSize({ x, y, width, height, right, bottom } = this.currentBoxRect) {
+  private ensureBoxMinSize(boxRect = this.currentBoxRect) {
+    const { width, height, right, bottom } = boxRect;
+    const { x, y } = this.getPointOnCanvas(boxRect);
+    const { x: canvasX, y: canvasY } = this.canvas.getBoundingClientRect();
+
     // Expand the box to min size
     const newBoxStyle: Partial<CSSStyleDeclaration> = {};
 
@@ -165,14 +186,14 @@ export class BoxControl {
       newBoxStyle.width = `${this.minBoxSize}px`;
 
       if (x < this.anchor.x) {
-        newBoxStyle.left = `${right - this.minBoxSize}px`;
+        newBoxStyle.left = `${right - canvasX - this.minBoxSize}px`;
       }
     }
     if (height < this.minBoxSize) {
       newBoxStyle.height = `${this.minBoxSize}px`;
 
       if (y < this.anchor.y) {
-        newBoxStyle.top = `${bottom - this.minBoxSize}px`;
+        newBoxStyle.top = `${bottom - canvasY - this.minBoxSize}px`;
       }
     }
 
@@ -188,8 +209,9 @@ export class BoxControl {
   // ========== DEPLOY BOX ==========
 
   private startBoxDeployment = (e: MouseEvent) => {
-    this.createNewBox(e.x, e.y);
+    const { x, y } = this.getPointOnCanvas(e);
 
+    this.createNewBox(x, y);
     this.$listeners.add(this.canvas, "CANVAS", "mousemove", this.resizeBox);
     this.$listeners.add(this.canvas, "CANVAS", "mouseup", this.endBoxDeployment);
   };
@@ -200,15 +222,17 @@ export class BoxControl {
 
     if (!width && !height) {
       // User click, width & height are 0
-      const { clientWidth, clientHeight } = document.documentElement;
-      const startX = Math.max(Math.min(e.x, clientWidth - this.defaultHalfSize) - this.defaultHalfSize, 0);
-      const startY = Math.max(Math.min(e.y, clientHeight - this.defaultHalfSize) - this.defaultHalfSize, 0);
+      const { x, y } = this.getPointOnCanvas(e);
+      const { clientWidth, clientHeight } = this.canvas;
+
+      const startX = Math.max(Math.min(x, clientWidth - this.defaultHalfSize) - this.defaultHalfSize, 0);
+      const startY = Math.max(Math.min(y, clientHeight - this.defaultHalfSize) - this.defaultHalfSize, 0);
 
       this.removeBox(this.currentBox);
       this.createNewBox(startX, startY, this.defaultHalfSize * 2, this.defaultHalfSize * 2);
     } //
     else {
-      this.assureBoxMinSize(boxRect);
+      this.ensureBoxMinSize(boxRect);
     }
 
     /**
@@ -217,6 +241,7 @@ export class BoxControl {
     this.currentBox.classList.add(`${this.boxCls}--finished`);
 
     this.resizerCtrl.addResizers(this.currentBox, `var(${RESIZER_SIZE_VAR_NAME})`);
+    this.toggleBoxInitStage(false);
 
     this.unsubscribeDeployment();
     this.canvasManager.onDrawBox?.("DEPLOY_END", this as any);
@@ -234,22 +259,22 @@ export class BoxControl {
 
     switch (direction) {
       case "TL":
-        this.updateAnchor({
+        this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.right,
           y: currentBoxRect.bottom,
         });
         break;
       case "TR":
-        this.updateAnchor({
+        this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.left,
           y: currentBoxRect.bottom,
         });
         break;
       case "BR":
-        this.updateAnchor(currentBoxRect);
+        this.anchor = this.getPointOnCanvas(currentBoxRect);
         break;
       case "BL":
-        this.updateAnchor({
+        this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.right,
           y: currentBoxRect.top,
         });
@@ -261,7 +286,7 @@ export class BoxControl {
   };
 
   private endBoxAdjustment = () => {
-    this.assureBoxMinSize();
+    this.ensureBoxMinSize();
     this.unsubscribeAdjustment();
     this.canvasManager.onDrawBox?.("ADJUST_END", this as any);
   };

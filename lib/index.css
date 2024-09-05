@@ -1,5 +1,5 @@
 .wpaint-canvas {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   z-index: 100;
@@ -9,15 +9,18 @@
 }
 
 .wpaint-box {
-  --boxShadowColor: rgb(0, 0, 0);
+  --borderColor: rgb(0, 0, 0);
   position: absolute;
-  box-shadow: 0 0 0 3px var(--boxShadowColor);
+  border: 3px solid var(--borderColor);
   box-sizing: border-box;
 }
 /* .wpaint-box--finished {
 } */
-.wpaint-box--current {
-  --boxShadowColor: rgb(255, 0, 0);
+.wpaint-box--finished.wpaint-box--current {
+  --borderColor: rgb(255, 0, 0);
+}
+.wpaint-box[data-init="true"] {
+  border: none;
 }
 
 .wpaint-box_resizer {

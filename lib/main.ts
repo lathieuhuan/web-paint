@@ -1,3 +1,2 @@
 import "./index.css";
-export * from "./paint";
-export { CanvasControl } from "./canvas-control";
+export { CanvasControl, type CanvasConstructOptions } from "./canvas-control";
