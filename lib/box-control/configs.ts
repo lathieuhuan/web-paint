@@ -1,3 +1,3 @@
-export type VerticalDirection = "T" | "B";
-export type HorizontalDirection = "L" | "R";
-export type Direction = `${VerticalDirection}${HorizontalDirection}`;
+export type VerticalDirection = "t" | "b";
+export type HorizontalDirection = "l" | "r";
+export type ResizeDirection = `${VerticalDirection}${HorizontalDirection}`;

@@ -1,23 +1,49 @@
 import { useEffect, useRef } from "react";
-import { Canvas } from "../lib/main";
+import { CanvasControl } from "../lib/main";
 
 function App() {
-  const canvas = useRef<Canvas>();
+  const canvas = useRef<CanvasControl>();
 
   useEffect(() => {
-    canvas.current = new Canvas();
+    // const newCanvas = new CanvasControl(document.getElementById("demo")!);
+    const newCanvas = new CanvasControl(document.getElementById("demo")!, { identifier: "htmlec" });
+
+    newCanvas.addListener("onDrawBox", (stage, boxCtrl) => {
+      console.log("stage", stage);
+
+      switch (stage) {
+        case "DEPLOY_START":
+          newCanvas.clearAll();
+          break;
+        case "DEPLOY_END":
+        case "ADJUST_END":
+          console.log(boxCtrl.currentObjectRect.toJSON());
+          break;
+      }
+    });
+
+    const endSessionOnEscPressed = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        newCanvas.endSession();
+      }
+    };
+
+    canvas.current = newCanvas;
+    document.addEventListener("keydown", endSessionOnEscPressed);
 
     return () => {
-      logListenersCount();
-      canvas.current?.endSession();
+      newCanvas.endSession();
+      document.addEventListener("keydown", endSessionOnEscPressed);
+      logSubscribersCount();
     };
   }, []);
 
   const onClickStart = () => {
     canvas.current?.startSession();
+    canvas.current?.startBoxDrawing();
   };
 
-  const logListenersCount = () => {
+  const logSubscribersCount = () => {
     console.log(canvas.current?.subscribersCount);
   };
 
@@ -27,10 +53,21 @@ function App() {
         <button className="button button-primary" onClick={onClickStart}>
           Start
         </button>
-        <button className="button button-danger" onClick={logListenersCount}>
+        <button className="button button-danger" onClick={logSubscribersCount}>
           Log Listeners count
         </button>
       </div>
+
+      <div
+        id="demo"
+        style={{
+          margin: "16px auto 0",
+          position: "relative",
+          width: 800,
+          height: 600,
+          background: "green",
+        }}
+      />
     </div>
   );
 }
