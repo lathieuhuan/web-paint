@@ -1,22 +1,12 @@
-import { BoxControl, OnDrawBox } from "../box-control";
-
-export type CanvasConstructOptions = {
-  id?: string;
-  prefix: string;
-  minBoxSize: number;
-  maxResizersSizeRatio: number;
-  defaultBoxSize: number;
-};
-
-export type CanvasManager = {
-  onDrawBox?: OnDrawBox;
-};
+import ClassName from "./class-name";
+import { BoxControl } from "./box-control";
+import type { CanvasConstructOptions, CanvasManager } from "./types";
+import "./index.css";
 
 let nextCanvasId = 0;
-const ENTITY_NAME = "CANVAS";
+const ENTITY_NAME = "canvas";
 
 const defaultOptions: CanvasConstructOptions = {
-  prefix: "wpaint",
   minBoxSize: 16,
   defaultBoxSize: 160,
   /** compared to box */
@@ -26,7 +16,7 @@ const defaultOptions: CanvasConstructOptions = {
 export class CanvasControl {
   private previousGroundOverflow = "";
   private canvas: HTMLElement;
-  private canvasCls: string;
+  private cls: ClassName;
   private boxCtrl: BoxControl;
   private manager: CanvasManager = {};
   id: string;
@@ -38,11 +28,11 @@ export class CanvasControl {
 
   constructor(private paintGround: HTMLElement = document.body, options?: Partial<CanvasConstructOptions>) {
     const mergedOptions = Object.assign(defaultOptions, options);
-    const { id = `${nextCanvasId++}`, prefix } = mergedOptions;
+    const { id = `${nextCanvasId++}` } = mergedOptions;
 
+    this.cls = new ClassName(ENTITY_NAME, mergedOptions.identifier);
     this.id = id;
-    this.canvasCls = `${prefix}-canvas`;
-    this.canvas = this.createCanvas(`${this.canvasCls}--${id}`, this.canvasCls);
+    this.canvas = this.createCanvas(this.cls.withModifier(id), this.cls.toString());
     this.boxCtrl = new BoxControl({
       canvas: this.canvas,
       canvasManager: this.manager,
@@ -78,7 +68,7 @@ export class CanvasControl {
     this.previousGroundOverflow = getComputedStyle(this.paintGround).overflow;
     this.paintGround.style.overflow = "hidden";
 
-    const existCanvas = this.paintGround.querySelector(`.${this.canvasCls}`);
+    const existCanvas = this.paintGround.querySelector(`.${this.cls.entity}`);
 
     if (existCanvas instanceof HTMLElement) {
       this.canvas = existCanvas;

@@ -1,18 +1,18 @@
+import ClassName from "../class-name";
 import { ResizeDirection } from "./configs";
 
-const ENTITY_NAME = "RESIZER";
+const ENTITY_NAME = "box_resizer";
 
 export class ResizerControl {
-  private identityCls: string;
+  private cls: ClassName;
 
-  constructor(prefix: string) {
-    this.identityCls = `${prefix}-box_resizer`;
+  constructor(identifier?: string) {
+    this.cls = new ClassName(ENTITY_NAME, identifier);
   }
 
   private makeResizer(direction: ResizeDirection, maxResizerSize: string) {
     const resizer = document.createElement("div");
-    resizer.id = `${this.identityCls}-${direction}`;
-    resizer.className = `${this.identityCls} ${this.identityCls}--${direction.toLowerCase()}`;
+    resizer.className = this.cls.toString(direction);
     resizer.style.maxWidth = maxResizerSize;
     resizer.dataset.entity = ENTITY_NAME;
     resizer.dataset.direction = direction;
@@ -21,7 +21,7 @@ export class ResizerControl {
   }
 
   addResizers(box: HTMLElement, maxResizerSize: string) {
-    const DIRECTIONS: ResizeDirection[] = ["TL", "TR", "BR", "BL"];
+    const DIRECTIONS: ResizeDirection[] = ["tl", "tr", "br", "bl"];
 
     for (const direction of DIRECTIONS) {
       box.appendChild(this.makeResizer(direction, maxResizerSize));

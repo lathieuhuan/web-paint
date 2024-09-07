@@ -1,1 +1,1 @@
-export * from "./box-control";
+export { BoxControl } from "./box-control";

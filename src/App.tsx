@@ -1,15 +1,12 @@
 import { useEffect, useRef } from "react";
 import { CanvasControl } from "../lib/main";
 
-// const paint = new Paint();
-
 function App() {
   const canvas = useRef<CanvasControl>();
 
   useEffect(() => {
-    // const newCanvas = paint.makeCanvas(() => document.getElementById("demo")!);
-    // const newCanvas = paint.makeCanvas();
-    const newCanvas = new CanvasControl(document.getElementById("demo")!);
+    // const newCanvas = new CanvasControl(document.getElementById("demo")!);
+    const newCanvas = new CanvasControl(document.getElementById("demo")!, { identifier: "htmlec" });
 
     newCanvas.addListener("onDrawBox", (stage, boxCtrl) => {
       console.log("stage", stage);
@@ -20,7 +17,7 @@ function App() {
           break;
         case "DEPLOY_END":
         case "ADJUST_END":
-          console.log(boxCtrl.currentBoxRect.toJSON());
+          console.log(boxCtrl.currentObjectRect.toJSON());
           break;
       }
     });
@@ -64,7 +61,7 @@ function App() {
       <div
         id="demo"
         style={{
-          margin: '16px auto 0',
+          margin: "16px auto 0",
           position: "relative",
           width: 800,
           height: 600,

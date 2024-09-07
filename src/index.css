@@ -23,3 +23,7 @@ button {
   border: 1px solid black;
   border-radius: 0.25rem;
 }
+
+.htmlec-box.wpaint-box--finished {
+  border-color: orange;
+}

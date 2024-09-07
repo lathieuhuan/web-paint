@@ -1,28 +1,18 @@
-import { ResizerControl } from "./resizer-control";
 import ListenersManager from "../listeners-manager";
+import ClassName from "../class-name";
+import { ResizerControl } from "./resizer-control";
 import { ResizeDirection } from "./configs";
-import type { CanvasConstructOptions, CanvasManager } from "../canvas-control";
+import type { CanvasConstructOptions, CanvasManager, ObjectControl } from "../types";
 
 type Point = {
   x: number;
   y: number;
 };
 
-const ENTITY_BOX = "BOX";
+const ENTITY_NAME = "box";
 const RESIZER_SIZE_VAR_NAME = "--resizer-size";
 
-type ExposedBoxControl = {
-  canvas: BoxControl["canvas"];
-  currentBox: BoxControl["currentBox"];
-  currentBoxRect: BoxControl["currentBoxRect"];
-  removeBox: BoxControl["removeBox"];
-};
-
-type BoxDrawingStage = "DEPLOY_START" | "DEPLOY_END" | "ADJUST_START" | "ADJUST_END";
-
-export type OnDrawBox = (stage: BoxDrawingStage, control: Readonly<ExposedBoxControl>) => void;
-
-type BoxControlConstructParams = Pick<CanvasConstructOptions, "prefix" | "minBoxSize" | "maxResizersSizeRatio"> & {
+type BoxControlConstructParams = Pick<CanvasConstructOptions, "identifier" | "minBoxSize" | "maxResizersSizeRatio"> & {
   canvas: HTMLElement;
   defaultHalfSize: number;
   canvasManager: CanvasManager;
@@ -35,7 +25,7 @@ export class BoxControl {
   private maxResizersSizeRatio: BoxControlConstructParams["maxResizersSizeRatio"];
   private canvasManager: CanvasManager;
 
-  private boxCls: string;
+  private cls: ClassName;
   private anchor: Point = {
     x: 0,
     y: 0,
@@ -45,9 +35,11 @@ export class BoxControl {
 
   private _currentBox: HTMLElement | undefined;
   private set currentBox(box: HTMLElement) {
-    this._currentBox?.classList.remove(`${this.boxCls}--current`);
+    const currentCls = this.cls.withModifier("current");
+
+    this._currentBox?.classList.remove(currentCls);
     this._currentBox = box;
-    this._currentBox.classList.add(`${this.boxCls}--current`);
+    this._currentBox.classList.add(currentCls);
   }
   private get currentBox() {
     if (this._currentBox) {
@@ -64,8 +56,8 @@ export class BoxControl {
     this.maxResizersSizeRatio = params.maxResizersSizeRatio;
     this.canvasManager = params.canvasManager;
 
-    this.boxCls = `${params.prefix}-box`;
-    this.resizerCtrl = new ResizerControl(params.prefix);
+    this.cls = new ClassName(ENTITY_NAME, params.identifier);
+    this.resizerCtrl = new ResizerControl(params.identifier);
   }
 
   private set currentBoxStyle(style: Partial<CSSStyleDeclaration>) {
@@ -83,6 +75,14 @@ export class BoxControl {
 
   private get currentBoxRect() {
     return this.currentBox.getBoundingClientRect();
+  }
+
+  private get exposedControl(): ObjectControl {
+    return {
+      canvas: this.canvas,
+      currentObject: this.currentBox,
+      currentObjectRect: this.currentBoxRect,
+    };
   }
 
   private getPointOnCanvas(pointOnViewPort: Point): Point {
@@ -111,11 +111,11 @@ export class BoxControl {
 
       if (direction) {
         this.currentBox = e.target.parentElement!;
-        this.canvasManager.onDrawBox?.("ADJUST_START", this as any);
+        this.canvasManager.onDrawBox?.("ADJUST_START", this.exposedControl);
         this.startBoxAdjustment(direction);
         return;
       }
-      this.canvasManager.onDrawBox?.("DEPLOY_START", this as any);
+      this.canvasManager.onDrawBox?.("DEPLOY_START", this.exposedControl);
       this.startBoxDeployment(e);
     }
   };
@@ -135,8 +135,8 @@ export class BoxControl {
 
   private createBox(left: number, top: number, width: number, height: number) {
     const currentBox = document.createElement("div");
-    currentBox.className = this.boxCls;
-    currentBox.dataset.entity = ENTITY_BOX;
+    currentBox.className = this.cls.toString('unfinished');
+    currentBox.dataset.entity = ENTITY_NAME;
 
     this.currentBox = this.toggleBoxInitStage(true, currentBox);
     this.currentBoxStyle = {
@@ -149,8 +149,6 @@ export class BoxControl {
   }
 
   private createNewBox(left: number, top: number, width = 0, height = 0) {
-    /** Only 1 currentBox at a time so we remove old currentBox */
-    // this.removeBox();
     this.createBox(left, top, width, height);
     this.canvas.appendChild(this.currentBox);
     this.anchor = { x: left, y: top };
@@ -238,13 +236,13 @@ export class BoxControl {
     /**
      * Style finished currentBox here
      */
-    this.currentBox.classList.add(`${this.boxCls}--finished`);
+    this.currentBox.classList.replace(this.cls.withModifier("unfinished"), this.cls.withModifier("finished"));
 
     this.resizerCtrl.addResizers(this.currentBox, `var(${RESIZER_SIZE_VAR_NAME})`);
     this.toggleBoxInitStage(false);
 
     this.unsubscribeDeployment();
-    this.canvasManager.onDrawBox?.("DEPLOY_END", this as any);
+    this.canvasManager.onDrawBox?.("DEPLOY_END", this.exposedControl);
   };
 
   private unsubscribeDeployment = () => {
@@ -258,22 +256,22 @@ export class BoxControl {
     const { currentBoxRect } = this;
 
     switch (direction) {
-      case "TL":
+      case "tl":
         this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.right,
           y: currentBoxRect.bottom,
         });
         break;
-      case "TR":
+      case "tr":
         this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.left,
           y: currentBoxRect.bottom,
         });
         break;
-      case "BR":
+      case "br":
         this.anchor = this.getPointOnCanvas(currentBoxRect);
         break;
-      case "BL":
+      case "bl":
         this.anchor = this.getPointOnCanvas({
           x: currentBoxRect.right,
           y: currentBoxRect.top,
@@ -288,7 +286,7 @@ export class BoxControl {
   private endBoxAdjustment = () => {
     this.ensureBoxMinSize();
     this.unsubscribeAdjustment();
-    this.canvasManager.onDrawBox?.("ADJUST_END", this as any);
+    this.canvasManager.onDrawBox?.("ADJUST_END", this.exposedControl);
   };
 
   private unsubscribeAdjustment = () => {

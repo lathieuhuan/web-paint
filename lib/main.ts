@@ -1,2 +1,2 @@
-import "./index.css";
-export { CanvasControl, type CanvasConstructOptions } from "./canvas-control";
+export * from "./canvas-control";
+export type { CanvasConstructOptions } from './types';
